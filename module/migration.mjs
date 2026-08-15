@@ -759,6 +759,7 @@ export function migrateEffectData(effect, migrationData, { bypassVersionCheck, p
   if ( bypassVersionCheck || foundry.utils.isNewerVersion("3.1.0", version) ) {
     _migrateEffectTransfer(effect, parent, updateData);
   }
+  _migrateEffectTransferV2(effect, parent, updateData);
 
   return updateData;
 }
@@ -1186,6 +1187,23 @@ function _migrateEffectTransfer(effect, parent, updateData) {
   updateData["duration.startRound"] = null;
   updateData["duration.startTurn"] = null;
 
+  return updateData;
+}
+
+/* -------------------------------------------- */
+
+/**
+ * Disable transfer (and disabled) on effects which can appear in the effect application tray.
+ * @param {object} effect      Effect data to migrate.
+ * @param {object} parent      The parent of this effect.
+ * @param {object} updateData  Existing update to expand upon.
+ * @returns {object}           The updateData to apply.
+ */
+function _migrateEffectTransferV2(effect, parent, updateData) {
+  if ( !effect.transfer || (effect.type === "enchantment") ) return updateData;
+  if ( Object.values(parent.system?.activities ?? {}).some(a => a.effects.some(e => e._id === effect._id)) ) {
+    updateData.transfer = updateData.disabled = false;
+  }
   return updateData;
 }
 
