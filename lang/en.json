@@ -2731,7 +2731,13 @@
   "Suppressed": {
     "Hint": "Source item must be equipped or attuned to activate these"
   },
-  "Tab": "Effects"
+  "Tab": "Effects",
+  "Transfer": {
+    "DisabledTooltip": "This effect is currently selected in one or more of its Item's Activities, and therefore cannot passively apply to the Item's Actor."
+  },
+  "Warning": {
+    "NoTransfer": "Cannot make this a transfer effect as it is currently selected on one or more of its Item's Activities."
+  }
 },
 
 "DND5E.ENCHANT": {

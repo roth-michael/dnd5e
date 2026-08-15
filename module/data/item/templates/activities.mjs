@@ -467,21 +467,47 @@ export default class ActivitiesTemplate extends SystemDataModel {
       await this.parent.actor.deleteEmbeddedDocuments("Item", options.dnd5e.removedCachedItems);
     }
 
-    // Create any new cached spells & update existing ones as necessary
+    // Iterate over activities to determine any bulk updates needed
     const cachedInserts = [];
+    const effectUpdates = [];
     for ( const id of Object.keys(changed.system.activities) ) {
       const activity = this.activities.get(id);
-      if ( !(activity instanceof CastActivity) ) continue;
-      const existingSpell = activity.cachedSpell;
-      if ( existingSpell ) {
-        const enchantment = existingSpell.effects.get(CastActivity.ENCHANTMENT_ID);
-        await enchantment?.update({ changes: activity.getSpellChanges() });
-      } else {
-        const cached = await activity.getCachedSpellData();
-        if ( cached ) cachedInserts.push(cached);
+      
+      // Create any new cached spells & update existing ones as necessary
+      if ( activity instanceof CastActivity ) {
+        const existingSpell = activity.cachedSpell;
+        if ( existingSpell ) {
+          const enchantment = existingSpell.effects.get(CastActivity.ENCHANTMENT_ID);
+          await enchantment?.update({ changes: activity.getSpellChanges() });
+        } else {
+          const cached = await activity.getCachedSpellData();
+          if ( cached ) cachedInserts.push(cached);
+        }
+      }
+
+      // Ensure any activity-bound effects are non-transfer
+      const changedEffects = changed.system.activities[id].effects;
+      if ( !changedEffects ) continue;
+      for ( const { _id } of changedEffects ) {
+        const effect = this.parent.effects.get(_id);
+        if ( effect && effect.transfer ) effectUpdates.push({ _id, transfer: false });
       }
     }
-    if ( cachedInserts.length ) await this.parent.actor.createEmbeddedDocuments("Item", cachedInserts);
+
+    const operations = [];
+    if ( cachedInserts.length ) operations.push({
+      action: "create",
+      documentName: "Item",
+      data: cachedInserts,
+      parent: this.parent.actor
+    });
+    if ( effectUpdates.length ) operations.push({
+      action: "update",
+      documentName: "ActiveEffect",
+      updates: effectUpdates,
+      parent: this.parent
+    });
+    if ( operations.length ) await foundry.documents.modifyBatch(operations);
   }
 
   /* -------------------------------------------- */
